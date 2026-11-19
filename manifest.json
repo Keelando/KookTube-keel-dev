@@ -3,6 +3,14 @@
   "name": "KookTube Key Detector",
   "version": "1.1.3",
   "description": "Offline, on-device musical key detection for YouTube, including Western keys and Persian dastgah (quarter-tones).",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "kooktube@rasnarim",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
