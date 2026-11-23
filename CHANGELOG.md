@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1
+
+- The same badge also runs on Suno, Udio, Radio Javan, Bandcamp, Instagram, TikTok, Facebook, Vimeo, Mixcloud, Audiomack, Twitch, Aparat, and the Internet Archive. Encrypted players are still left untouched.
+
+## 1.2.0
+
+- The badge also runs on Spotify (`open.spotify.com`) and SoundCloud. A new track clears the buffer. Spotify tracks that use encrypted playback are left untouched, because connecting to them would silence the player.
+
 ## 1.1.3
 
 - Transpose control on the badge shifts the music by semitones without changing the video speed. Zero leaves the audio untouched. Key detection still hears the original pitch.

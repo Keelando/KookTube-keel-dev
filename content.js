@@ -1,6 +1,6 @@
 /*
  * KookTube Key Detector
- * Offline YouTube key / dastgah detector (Manifest V3 content script).
+ * Offline key / dastgah detector for YouTube, Spotify, and SoundCloud.
  *
  * Load unpacked: chrome://extensions → Developer mode → Load unpacked
  * and select this folder. Firefox: about:debugging → Load Temporary Add-on.
@@ -825,6 +825,7 @@
       pitchNode: null,
       pitchParam: null,
       pitchFailed: false,
+      drmBlocked: false,
     };
 
     const host = document.createElement('div');
@@ -954,6 +955,28 @@
     document.documentElement.appendChild(host);
     syncModeButton();
 
+    function siteKind() {
+      const host = location.hostname;
+      if (host === 'open.spotify.com') return 'spotify';
+      if (host === 'soundcloud.com' || host.endsWith('.soundcloud.com')) return 'soundcloud';
+      if (host === 'www.youtube.com' || host === 'music.youtube.com' || host === 'm.youtube.com') return 'youtube';
+      if (isPlayerHost(host)) return 'media';
+      return '';
+    }
+
+    function isPlayerHost(host) {
+      const names = [
+        'suno.com', 'udio.com', 'radiojavan.com', 'bandcamp.com',
+        'instagram.com', 'tiktok.com', 'facebook.com', 'vimeo.com',
+        'mixcloud.com', 'audiomack.com', 'twitch.tv', 'aparat.com', 'archive.org',
+      ];
+      for (let i = 0; i < names.length; i++) {
+        const name = names[i];
+        if (host === name || host === 'www.' + name || host.endsWith('.' + name)) return true;
+      }
+      return false;
+    }
+
     function videoIdFromLocation() {
       try {
         if (location.pathname.indexOf('/shorts/') === 0) {
@@ -966,18 +989,67 @@
       }
     }
 
+    function trackId() {
+      const kind = siteKind();
+      if (kind === 'youtube') return videoIdFromLocation();
+      if (kind === 'spotify') {
+        const link = document.querySelector(
+          '[data-testid="now-playing-widget"] a[href*="/track/"], [data-testid="now-playing-widget"] a[href*="/episode/"], a[data-testid="context-item-link"]'
+        );
+        if (link) return link.getAttribute('href') || link.href;
+      }
+      if (kind === 'soundcloud') {
+        const link = document.querySelector('.playbackSoundBadge__title a[href], .playControls__soundBadge a[href]');
+        if (link) return link.getAttribute('href') || link.href;
+      }
+      if (kind === 'media') {
+        const nodes = document.querySelectorAll('audio, video');
+        for (let i = 0; i < nodes.length; i++) {
+          if (!nodes[i].paused && !nodes[i].ended) return location.pathname + '|' + (nodes[i].currentSrc || '');
+        }
+      }
+      return location.pathname;
+    }
+
     function isMusicPage() {
-      return location.pathname === '/watch' || location.pathname.indexOf('/shorts/') === 0;
+      const kind = siteKind();
+      if (kind === 'spotify' || kind === 'soundcloud' || kind === 'media') return true;
+      if (kind === 'youtube') {
+        return location.pathname === '/watch' || location.pathname.indexOf('/shorts/') === 0;
+      }
+      return false;
+    }
+
+    function findPlaying(nodes) {
+      let attached = null;
+      for (let i = 0; i < nodes.length; i++) {
+        const el = nodes[i];
+        if (el.__kooktubeGraphAttached) attached = el;
+        if (!el.paused && !el.ended) return el;
+      }
+      if (attached) return attached;
+      return nodes.length ? nodes[nodes.length - 1] : null;
     }
 
     function findVideo() {
-      if (location.pathname.indexOf('/shorts/') === 0) {
-        const root = document.getElementById('shorts-player');
-        const shortsVideo = root && root.querySelector('video');
-        if (shortsVideo) return shortsVideo;
+      if (siteKind() === 'youtube') {
+        if (location.pathname.indexOf('/shorts/') === 0) {
+          const root = document.getElementById('shorts-player');
+          const shortsVideo = root && root.querySelector('video');
+          if (shortsVideo) return shortsVideo;
+        }
+        return document.querySelector('video.html5-main-video')
+          || document.querySelector('#movie_player video');
       }
-      return document.querySelector('video.html5-main-video')
-        || document.querySelector('#movie_player video');
+      return findPlaying(document.querySelectorAll('audio, video'));
+    }
+
+    function encryptedMedia(media) {
+      try {
+        return !!(media && media.mediaKeys);
+      } catch (err) {
+        return false;
+      }
     }
 
     function adPlaying() {
@@ -1181,10 +1253,19 @@
         return;
       }
       if (video.__kooktubeGraphAttached) return;
+      if (encryptedMedia(video)) {
+        state.drmBlocked = true;
+        return;
+      }
       if (!state.audioReady || !state.audioCtx || state.audioCtx.state !== 'running') return;
       if (!state.useWorklet && !state.analyser) return;
       try {
+        if (state.mediaEl && state.mediaEl !== video && state.source) {
+          try { state.source.disconnect(); } catch (err) { /* old player is already gone */ }
+          state.source = null;
+        }
         const source = state.audioCtx.createMediaElementSource(video);
+        state.mediaEl = video;
         video.__kooktubeGraphAttached = true;
         state.source = source;
         source.connect(state.pitchNode || state.output);
@@ -1204,7 +1285,7 @@
 
     function syncPage() {
       const onWatch = isMusicPage();
-      const id = videoIdFromLocation();
+      const id = trackId();
       if (id !== state.videoId) {
         state.videoId = id;
         state.captureError = false;
@@ -1214,11 +1295,14 @@
       setWatchVisible(onWatch);
       if (!onWatch) {
         state.video = null;
+        state.drmBlocked = false;
         return;
       }
       const video = findVideo();
       if (!video) return;
       state.video = video;
+      state.drmBlocked = encryptedMedia(video);
+      if (state.drmBlocked) return;
       if (gestureOk()) armAudio();
       if (state.audioReady) attachVideo(video);
     }
@@ -1265,6 +1349,11 @@
     function render() {
       if (!state.onWatch) return;
       tuningEl.textContent = state.analysis.tonalSeconds > 0 ? formatTuning(state.analysis.tuningCents) : '';
+      if (state.drmBlocked) {
+        labelEl.classList.add('pending');
+        labelEl.textContent = 'This player encrypts its audio';
+        return;
+      }
       if (adPlaying()) {
         labelEl.classList.add('pending');
         labelEl.textContent = 'Paused for ad';

@@ -1,10 +1,10 @@
 # KookTube Key Detector
 
-On-device key detection for YouTube and YouTube Music. Audio stays in the browser. The badge appears at the bottom-right of a watch page.
+On-device key detection for YouTube, YouTube Music, Spotify, SoundCloud, and other music and video sites (Suno, Udio, Radio Javan, Bandcamp, Instagram, TikTok, Facebook, Vimeo, Mixcloud, Audiomack, Twitch, Aparat, and the Internet Archive). Audio stays in the browser. The badge appears at the bottom-right of the player page.
 
 Install it from this folder. The folder you select must contain `manifest.json`.
 
-After you install or update it, reload the extension on the browser’s extensions page, then refresh any YouTube tab that was already open. An open tab keeps the previous audio connection until that refresh.
+After you install or update it, reload the extension on the browser’s extensions page, then refresh any player tab that was already open. An open tab keeps the previous audio connection until that refresh.
 
 ## Chrome
 
@@ -56,4 +56,6 @@ A copy that stays installed after Firefox quits has to be signed through [addons
 
 ## Confirm it is running
 
-The extensions page should list **KookTube Key Detector**. Open a YouTube video and refresh that tab. Click the page once. The badge starts in **Western**. Use **−** and **+** to transpose what you hear. The video speed does not change.
+The extensions page should list **KookTube Key Detector**. Open a player page and refresh that tab. Click the page once. The badge starts in **Western**. Use **−** and **+** to transpose what you hear. Playback speed does not change.
+
+Spotify plays most full tracks through an encrypted player. The badge stays visible there and leaves that audio alone, because reading it is not possible without silencing the song. SoundCloud and YouTube use a normal media element, so detection and transpose both run.
