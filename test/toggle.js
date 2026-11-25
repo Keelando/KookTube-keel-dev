@@ -49,6 +49,7 @@ function fakeElement() {
   return {
     checked: false,
     disabled: false,
+    hidden: false,
     textContent: '',
     classList: {
       toggle: function (name, on) { if (on) classes.add(name); else classes.delete(name); },
@@ -135,14 +136,16 @@ async function popupTests() {
     els.global.fire('change');
     await settle();
     assertCase('popup: global off writes globalOff', storage.data.globalOff === true, storage.data);
-    assertCase('popup: site switch disabled while global off', els.site.disabled && els['site-row'].classList.contains('disabled'));
+    assertCase('popup: site switch hidden while global off', els['site-row'].hidden && els.site.disabled);
+    assertCase('popup: site setting kept while global off', els.site.checked && !('off:www.youtube.com' in storage.data));
     assertCase('popup: content rule agrees everything is off', !api.siteEnabled(storage.data, 'soundcloud.com'));
 
     els.global.checked = true;
     els.global.fire('change');
     await settle();
     assertCase('popup: global on removes key', !('globalOff' in storage.data), storage.data);
-    assertCase('popup: site switch usable again', !els.site.disabled);
+    assertCase('popup: site switch shown and usable again', !els['site-row'].hidden && !els.site.disabled && els.site.checked);
+    assertCase('popup: site is on again after global on', api.siteEnabled(storage.data, 'www.youtube.com'));
   }
 
   {
@@ -152,6 +155,7 @@ async function popupTests() {
     assertCase('popup: reflects stored global off', !els.global.checked);
     assertCase('popup: reflects stored site off', !els.site.checked);
     assertCase('popup: explains global off', /every site/.test(els.note.textContent), els.note.textContent);
+    assertCase('popup: site row hidden when stored global off', els['site-row'].hidden);
   }
 
   {
@@ -159,7 +163,7 @@ async function popupTests() {
     const els = setupPopup(storage, null);
     await settle();
     assertCase('popup: unsupported page disables site switch', els.site.disabled);
-    assertCase('popup: unsupported page explains why', /does not run/.test(els.note.textContent), els.note.textContent);
+    assertCase('popup: unsupported page explains why', /not running in this tab/.test(els.note.textContent), els.note.textContent);
     assertCase('popup: global switch still works there', els.global.checked && !els.global.disabled);
   }
 }

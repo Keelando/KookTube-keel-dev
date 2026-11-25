@@ -30,11 +30,12 @@ function render(items) {
   const globalOff = !!items[GLOBAL_OFF_KEY];
   globalBox.checked = !globalOff;
   siteBox.checked = siteKey ? !items[siteKey] : false;
-  const siteUsable = !!siteKey && !globalOff;
-  siteBox.disabled = !siteUsable;
-  siteRow.classList.toggle('disabled', !siteUsable);
-  if (!siteKey) note.textContent = 'KookTube does not run on this page.';
-  else if (globalOff) note.textContent = 'Off on every site.';
+  /* While off everywhere, the site switch is hidden; its own setting is kept for when KookTube is back on. */
+  siteRow.hidden = globalOff;
+  siteBox.disabled = !siteKey || globalOff;
+  siteRow.classList.toggle('disabled', !siteKey);
+  if (globalOff) note.textContent = 'Off on every site.';
+  else if (!siteKey) note.textContent = 'KookTube is not running in this tab. On a supported site, refresh the tab.';
   else note.textContent = '';
 }
 
